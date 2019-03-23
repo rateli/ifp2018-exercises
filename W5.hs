@@ -28,10 +28,10 @@ import Data.List
 -- 3 *! True ==> [True,True,True]
 
 (%$) :: String -> String -> String
-x %$ y = undefined
+x %$ y = x ++ y ++ x
 
 (*!) :: Int -> a -> [a]
-n *! val = undefined
+n *! val = replicate n val
 
 ------------------------------------------------------------------------------
 -- Ex 2: implement the function allEqual which returns True if all
@@ -47,7 +47,10 @@ n *! val = undefined
 -- you remove the Eq a => constraint from the type!
 
 allEqual :: Eq a => [a] -> Bool
-allEqual xs = undefined
+allEqual [] = True
+allEqual [x] = True
+allEqual (x1:x2:xs) = if x1 == x2 then allEqual (x2:xs)
+                                  else False
 
 ------------------------------------------------------------------------------
 -- Ex 3: implement the function secondSmallest that returns the second
@@ -64,7 +67,9 @@ allEqual xs = undefined
 -- secondSmallest [5,3,7,2,3,1]  ==>  Just 2
 
 secondSmallest :: Ord a => [a] -> Maybe a
-secondSmallest xs = undefined
+secondSmallest [] = Nothing
+secondSmallest [x] = Nothing
+secondSmallest xs = Just $ head $ tail $ sort xs
 
 ------------------------------------------------------------------------------
 -- Ex 4: Implement the function incrementKey, that takes a list of
@@ -80,8 +85,8 @@ secondSmallest xs = undefined
 --   incrementKey True [(True,1),(False,3),(True,4)] ==> [(True,2),(False,3),(True,5)]
 --   incrementKey 'a' [('a',3.4)] ==> [('a',4.4)]
 
-incrementKey :: k -> [(k,v)] -> [(k,v)]
-incrementKey = undefined
+incrementKey :: (Eq k, Num v) => k -> [(k,v)] -> [(k,v)]
+incrementKey key ls = map (\(k,v) -> if key == k then (k, v+1) else (k, v)) ls
 
 ------------------------------------------------------------------------------
 -- Ex 5: compute the average of a list of values of the Fractional
@@ -97,7 +102,7 @@ incrementKey = undefined
 
 
 average :: Fractional a => [a] -> a
-average xs = undefined
+average xs = sum xs / fromIntegral (length xs)
 
 ------------------------------------------------------------------------------
 -- Ex 6: define an Eq instance for the type Foo below.
@@ -108,16 +113,19 @@ data Foo = Bar | Quux | Xyzzy
   deriving Show
 
 instance Eq Foo where
-  (==) = error "implement me"
+  Bar == Bar     = True
+  Quux == Quux   = True
+  Xyzzy == Xyzzy = True
+  _ == _         = False
 
 ------------------------------------------------------------------------------
 -- Ex 7: implement an Ord instance for Foo so that Quux < Bar < Xyzzy
 
 instance Ord Foo where
-  compare = error "implement me?"
-  (<=) = error "and me?"
-  min = error "and me?"
-  max = error "and me?"
+  Quux <= Bar = True
+  Bar <= Xyzzy = True
+  Quux <= Xyzzy = True
+  x <= y = x == y
 
 ------------------------------------------------------------------------------
 -- Ex 8: here is a type for a 3d vector. Implement an Eq instance for it.
@@ -126,10 +134,10 @@ data Vector = Vector Integer Integer Integer
   deriving Show
 
 instance Eq Vector where
-  (==) = error "implement me"
+  (Vector a b c) == (Vector x y z) = a == x && b == y && c == z
 
 ------------------------------------------------------------------------------
--- Ex 9: implementa Num instance for Vector such that all the
+-- Ex 9: implement Num instance for Vector such that all the
 -- arithmetic operations work componentwise.
 --
 -- You should probably check the docs for which methods Num has!
@@ -142,6 +150,12 @@ instance Eq Vector where
 -- signum (Vector (-1) 2 (-3)) ==> Vector (-1) 1 (-1)
 
 instance Num Vector where
+  (Vector a b c) + (Vector x y z) = Vector (a+x) (b+y) (c+z)
+  (Vector a b c) * (Vector x y z) = Vector (a*x) (b*y) (c*z)
+  abs (Vector a b c) = Vector (abs a) (abs b) (abs c)
+  negate (Vector a b c) = Vector (-a) (-b) (-c)
+  signum (Vector a b c) = Vector (signum a) (signum b) (signum c)
+  fromInteger x = Vector x x x
 
 ------------------------------------------------------------------------------
 -- Ex 10: compute how many times each value in the list occurs. Return
@@ -154,7 +168,9 @@ instance Num Vector where
 --   ==> [(3,False),(1,True)]
 
 freqs :: (Eq a, Ord a) => [a] -> [(Int,a)]
-freqs xs = undefined
+freqs [] = []
+freqs (x:xs) = ((length matched) + 1, x) : freqs remaining
+  where (matched, remaining) = partition (== x) xs
 
 ------------------------------------------------------------------------------
 -- Ex 11: implement an Eq instance for the following binary tree type
@@ -163,7 +179,9 @@ data ITree = ILeaf | INode Int ITree ITree
   deriving Show
 
 instance Eq ITree where
-  (==) = error "implement me"
+  ILeaf == ILeaf                 = True
+  INode a al ar == INode b bl br = a == b && al == bl && ar == br
+  _ == _                         = False
 
 ------------------------------------------------------------------------------
 -- Ex 12: here is a list type parameterized over the type it contains.
@@ -174,7 +192,9 @@ data List a = Empty | LNode a (List a)
   deriving Show
 
 instance Eq a => Eq (List a) where
-  (==) = error "implement me"
+  Empty == Empty           = True
+  LNode x xs == LNode y ys = x == y && xs == ys
+  _ == _                   = False
 
 ------------------------------------------------------------------------------
 -- Ex 13: Implement the function incrementAll that takes a functor
@@ -185,7 +205,7 @@ instance Eq a => Eq (List a) where
 --   incrementAll (Just 3.0)  ==>  Just 4.0
 
 incrementAll :: (Functor f, Num n) => f n -> f n
-incrementAll x = undefined
+incrementAll x = fmap (+1) x
 
 ------------------------------------------------------------------------------
 -- Ex 14: below you'll find a type Result that works a bit like Maybe,
@@ -198,13 +218,17 @@ data Result a = MkResult a | NoResult | Failure String
   deriving (Show,Eq)
 
 instance Functor Result where
-  fmap f result = error "implement me"
+  fmap f (MkResult x) = MkResult (f x)
+  fmap _ (Failure s) = (Failure s)
+  fmap _ NoResult = NoResult
 
 ------------------------------------------------------------------------------
 -- Ex 15: Implement the instance Functor List (for the datatype List
 -- from ex 12)
 
 instance Functor List where
+  fmap _ Empty = Empty
+  fmap f (LNode x xs) = LNode (f x) (fmap f xs)
 
 ------------------------------------------------------------------------------
 -- Ex 16: Fun a is a type that wraps a function Int -> a. Implement a
@@ -219,6 +243,7 @@ runFun :: Fun a -> Int -> a
 runFun (Fun f) x = f x
 
 instance Functor Fun where
+  fmap f (Fun g) = Fun (f . g)
 
 ------------------------------------------------------------------------------
 -- Ex 17: Define the operator ||| that works like ||, but forces its
@@ -234,7 +259,7 @@ instance Functor Fun where
 -- pattern matching.
 
 (|||) :: Bool -> Bool -> Bool
-x ||| y = undefined
+x ||| y = y || x
 
 ------------------------------------------------------------------------------
 -- Ex 18: Define the function boolLength, that returns the length of a
@@ -246,7 +271,9 @@ x ||| y = undefined
 -- Huom! length [False,undefined] ==> 2
 
 boolLength :: [Bool] -> Int
-boolLength xs = undefined
+boolLength [] = 0
+boolLength (True:xs)  = 1 + boolLength xs
+boolLength (False:xs) = 1 + boolLength xs
 
 ------------------------------------------------------------------------------
 -- Ex 19: this and the next exercise serve as an introduction for the
@@ -278,7 +305,10 @@ boolLength xs = undefined
 --  (True,True,False)
 
 threeRandom :: (Random a, RandomGen g) => g -> (a,a,a)
-threeRandom g = undefined
+threeRandom g = (a, b, c)
+  where (a, g1) = random g
+        (b, g2) = random g1
+        (c, _)  = random g2
 
 ------------------------------------------------------------------------------
 -- Ex 20: given a Tree (same type as on Week 3), randomize the
@@ -302,4 +332,8 @@ data Tree a = Leaf | Node a (Tree a) (Tree a)
   deriving Show
 
 randomizeTree :: (Random a, RandomGen g) => Tree b -> g -> (Tree a,g)
-randomizeTree t g = undefined
+randomizeTree Leaf g = (Leaf, g)
+randomizeTree (Node n l r) g = (Node n' l' r', g3)
+  where (n', g1) = random g
+        (l', g2) = randomizeTree l g1
+        (r', g3) = randomizeTree r g2
