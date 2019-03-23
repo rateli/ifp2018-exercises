@@ -42,18 +42,25 @@ readNames s =
 -- (NB! There are obviously other corner cases like the inputs " " and
 -- "a b c", but you don't need to worry about those here)
 split :: String -> Maybe (String,String)
-split s = undefined
+split s
+  | length for == 0 = Nothing
+  | length sur <= 1 = Nothing
+  | otherwise       = Just (for, (tail sur))
+  where (for, sur) = break (== ' ') s
+
 
 -- checkDuplacate should take a pair of two strings and return Nothing
 -- if they are the same. Otherwise the strings are returned.
 checkDuplicate :: (String, String) -> Maybe (String, String)
-checkDuplicate (for,sur) = undefined
+checkDuplicate (for,sur) = if for /= sur then Just (for, sur) else Nothing
 
 -- checkCapitals should take a pair of two strings and return them
 -- unchanged if both start with a capital letter. Otherwise Nothing is
 -- returned.
 checkCapitals :: (String, String) -> Maybe (String, String)
-checkCapitals (for,sur) = undefined
+checkCapitals (for,sur) = if isUpper (head for) && isUpper (head sur)
+                            then Just (for, sur)
+                            else Nothing
 
 ------------------------------------------------------------------------------
 -- Ex 2: implement a function myDrop that works just like drop, but
@@ -77,8 +84,11 @@ checkCapitals (for,sur) = undefined
 --    ==> Nothing
 
 myDrop :: Maybe Int -> Maybe [a] -> Maybe [a]
-myDrop mi ml = undefined
-
+myDrop mi ml = do i <- mi
+                  l <- ml
+                  if i < 0 || i > (length l)
+                    then Nothing
+                    else return $ drop i l
 ------------------------------------------------------------------------------
 -- Ex 3: given a list of values and a list of indices, return the sum
 -- of the values in the given indices. You should fail if any of the
@@ -97,7 +107,14 @@ myDrop mi ml = undefined
 --    Nothing
 
 selectSum :: Num a => [a] -> [Int] -> Maybe a
-selectSum xs is = undefined
+selectSum _ [] = Just 0
+selectSum xs (i:is) = do x <- safeIndex xs i
+                         sum <- selectSum xs is
+                         return $ x + sum
+
+safeIndex :: [a] -> Int -> Maybe a
+safeIndex [] _ = Nothing
+safeIndex xs i = if i < 0 || i >= length xs then Nothing else Just (xs !! i)
 
 ------------------------------------------------------------------------------
 -- Ex 4: below you'll find the Logger monad from the lectures.
@@ -141,7 +158,13 @@ msg s = Logger [s] ()
 
 -- Implement this:
 binom :: Integer -> Integer -> Logger Integer
-binom n k = undefined
+binom n 0 = msg ("B(" ++ show n ++ ",0)") >> return 1
+binom n k = if n == 0 && k > 0
+            then msg ("B(0," ++ show k ++ ")") >> return 0
+            else do i <- binom (n-1) (k-1)
+                    j <- binom (n-1) k
+                    msg ("B(" ++ show n ++ "," ++ show k ++ ")")
+                    return $ i + j
 
 ------------------------------------------------------------------------------
 -- Ex 5: using the State monad, write the operation update that first
@@ -153,7 +176,8 @@ binom n k = undefined
 --    ==> ((),7)
 
 update :: State Int ()
-update = undefined
+update = do old <- get
+            put $ (old * 2) + 1
 
 ------------------------------------------------------------------------------
 -- Ex 6: using the State monad, walk through a list and add up all the
@@ -168,7 +192,10 @@ update = undefined
 --    ==> (4,10)
 
 lengthAndSum :: [Int] -> State Int Int
-lengthAndSum xs = undefined
+lengthAndSum [] = return 0
+lengthAndSum (x:xs) = do len <- lengthAndSum xs
+                         modify (+x)
+                         return $ 1 + len
 
 ------------------------------------------------------------------------------
 -- Ex 7: Let's use a state of type [a] to keep track of which elements
@@ -185,7 +212,10 @@ lengthAndSum xs = undefined
 -- PS. Order of the list in the state doesn't matter
 
 oddUpdate :: Eq a => a -> State [a] ()
-oddUpdate x = undefined
+oddUpdate x = do xs <- get
+                 if elem x xs
+                 then put (delete x xs)
+                 else put (x:xs)
 
 ------------------------------------------------------------------------------
 -- Ex 8: Define the operation oddsOp, so that the function odds
@@ -205,7 +235,7 @@ odds :: Eq a => [a] -> [a]
 odds xs = snd (runState (oddsOp xs) [])
 
 oddsOp :: Eq a => [a] -> State [a] ()
-oddsOp xs = undefined
+oddsOp xs = forM_ xs oddUpdate
 
 ------------------------------------------------------------------------------
 -- Ex 9: implement the function ifM, that takes three monadic
@@ -225,7 +255,8 @@ test = do
   return (x<10)
 
 ifM :: Monad m => m Bool -> m a -> m a -> m a
-ifM opBool opThen opElse = undefined
+ifM opBool opThen opElse = do cond <- opBool
+                              if cond then opThen else opElse
 
 ------------------------------------------------------------------------------
 -- Ex 10: the standard library function Control.Monad.mapM defines a
@@ -251,7 +282,11 @@ safeDiv x 0.0 = Nothing
 safeDiv x y = Just (x/y)
 
 mapM2 :: Monad m => (a -> b -> m c) -> [a] -> [b] -> m [c]
-mapM2 op xs ys = undefined
+mapM2 _ _ [] = return []
+mapM2 _ [] _ = return []
+mapM2 op (x:xs) (y:ys) = do result <- op x y
+                            remaining <- mapM2 op xs ys
+                            return $ result : remaining
 
 ------------------------------------------------------------------------------
 -- Ex 11&12: Funnykiztan has cities that are named with by integers
@@ -325,7 +360,11 @@ routeExists :: [[Int]] -> Int -> Int -> Bool
 routeExists cities i j = j `elem` execState (dfs cities i) []
 
 dfs :: [[Int]] -> Int -> State [Int] ()
-dfs cities i = undefined
+dfs cities i = do seen <- get
+                  unless (elem i seen) $
+                    do put $ i : seen
+                       mapM_ (dfs cities) (cities !! i)
+
 
 ------------------------------------------------------------------------------
 -- Ex 13: define the function orderedPairs that returns all pairs
@@ -340,7 +379,10 @@ dfs cities i = undefined
 -- PS. once again the tests don't care about the order of results
 
 orderedPairs :: [Int] -> [(Int,Int)]
-orderedPairs xs = undefined
+orderedPairs xs = do i <- [0..length xs - 1]
+                     j <- [1..length xs - 1]
+                     let (a,b) = (xs !! i, xs !! j)
+                     if i < j && a < b then [(a,b)] else []
 
 ------------------------------------------------------------------------------
 -- Ex 14: Using the list monad, produce a list of all pairs of
@@ -358,7 +400,9 @@ orderedPairs xs = undefined
 -- PS. the order of the returned list does not matter
 
 pairs :: Eq a => [a] -> [(a,a)]
-pairs xs = undefined
+pairs xs = do a <- xs
+              b <- xs
+              if a /= b then [(a,b)] else []
 
 ------------------------------------------------------------------------------
 -- Ex 15: the standard library defines the function
@@ -385,7 +429,11 @@ sumNotTwice :: [Int] -> Int
 sumNotTwice xs = fst $ runState (foldM fsum 0 xs) []
 
 fsum :: Int -> Int -> State [Int] Int
-fsum acc x = undefined
+fsum acc x = do seen <- get
+                if elem x seen
+                  then return acc
+                  else do put (x:seen)
+                          return $ x + acc
 
 ------------------------------------------------------------------------------
 -- Ex 16: here is the Result type from last week. Implement a Monad
@@ -425,7 +473,11 @@ instance Applicative Result where
   (<*>) = ap
 
 instance Monad Result where
-  -- implement return and >>=
+  return x = MkResult x
+  fail s = Failure s
+  MkResult x >>= f  = f x
+  Failure s  >>= _  = Failure s
+  NoResult >>= _  = NoResult
 
 ------------------------------------------------------------------------------
 -- Ex 17&18: Here is the type SL that combines the State and Logger
@@ -475,7 +527,7 @@ modifySL :: (Int->Int) -> SL ()
 modifySL f = SL (\s -> ((),f s,[]))
 
 instance Functor SL where
-  -- implement fmap
+  fmap f (SL sl) = undefined
 
 -- again, disregard this
 instance Applicative SL where
@@ -483,4 +535,5 @@ instance Applicative SL where
   (<*>) = ap
 
 instance Monad SL where
-  -- implement return and >>=
+  return x = undefined
+  op >>= f = undefined
