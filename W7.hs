@@ -21,7 +21,9 @@ import Control.Monad.Trans.State
 --   countRange 1 3 [1,2,3,4,5] ==> 3
 
 countRange :: Int -> Int -> [Int] -> Int
-countRange low high is = undefined
+countRange low high is = length inRange
+  where inRange = filter (\i -> i >= low && i <= high) is
+
 
 ------------------------------------------------------------------------------
 -- Ex 2: Build a string that looks like an n*m chessboard:
@@ -39,7 +41,15 @@ countRange low high is = undefined
 -- in GHCi
 
 chess :: Int -> Int -> String
-chess = undefined
+chess 0 _ = ""
+chess _ 0 = ""
+chess row col = row' firstSq col ++  (chess (row-1) col)
+  where firstSq = if row `mod` 2 == 0 then "." else "#"
+
+row' :: String -> Int -> String
+row' _ 0 = "\n"
+row' sq i = sq ++ (row' nextSq (i-1))
+  where nextSq = if sq == "#" then "." else "#"
 
 ------------------------------------------------------------------------------
 -- Ex 3: Implement the function palindromify that chops a character
@@ -53,7 +63,9 @@ chess = undefined
 --   palindromify "abracacabra" ==> "acaca"
 
 palindromify :: String -> String
-palindromify = undefined
+palindromify s = if s == (reverse s)
+                 then s
+                 else palindromify . init . tail $ s
 
 ------------------------------------------------------------------------------
 -- Ex 4: Remove all repetitions of elements in a list. That is, if an
@@ -71,7 +83,10 @@ palindromify = undefined
 --   unrepeat [1,1,2,1,3,3,3] => [1,2,1,3]
 
 unrepeat :: Eq a => [a] -> [a]
-unrepeat = undefined
+unrepeat [] = []
+unrepeat [x] = [x]
+unrepeat (i:j:xs) = if i == j then unrepeat (j:xs)
+                    else i : unrepeat (j:xs)
 
 ------------------------------------------------------------------------------
 -- Ex 5: Given a list of Either String Int, sum all the integers.
@@ -82,7 +97,11 @@ unrepeat = undefined
 --   sumEithers [Left "fail", Right 1, Left "xxx", Right 2] ==> Just 3
 
 sumEithers :: [Either String Int] -> Maybe Int
-sumEithers = undefined
+sumEithers [] = Nothing
+sumEithers xs = if length (nums xs) == 0 then Nothing else Just (sum (nums xs))
+  where nums [] = []
+        nums ((Left s):rest) = nums rest
+        nums ((Right i):rest) = i : nums rest
 
 ------------------------------------------------------------------------------
 -- Ex 6: Define the data structure Shape with values that can be
@@ -99,17 +118,18 @@ sumEithers = undefined
 --
 -- All dimensions should be Doubles.
 
-data Shape = Undefined
+data Shape = Circle Double | Rect Double Double
   deriving Show -- leave this line in place
 
 circle :: Double -> Shape
-circle = undefined
+circle r = Circle r
 
 rectangle :: Double -> Double -> Shape
-rectangle = undefined
+rectangle w h = Rect w h
 
 area :: Shape -> Double
-area = undefined
+area (Circle r) = pi * r^2
+area (Rect w h) = w * h
 
 ------------------------------------------------------------------------------
 -- Ex 7: Here's a Card type for a deck of cards with just two suits
@@ -128,10 +148,18 @@ data Card = Heart Int | Spade Int | Joker
   deriving Show
 
 instance Eq Card where
-  a == b = undefined -- implement me!
+  Joker == Joker     = True
+  Heart a == Heart b = a == b
+  Spade a == Spade b = a == b
+  _ == _             = False
 
 instance Ord Card where
-  -- implement me!
+  Heart a <= Heart b = a <= b
+  Spade a <= Spade b = a <= b
+  Spade _ <= Heart _ = True
+  Spade _ <= Joker   = True
+  Heart _ <= Joker   = True
+  x <= y             = x == y
 
 ------------------------------------------------------------------------------
 -- Ex 8: Here's a type Twos for things that always come in pairs. It's
@@ -144,7 +172,8 @@ data Twos a = End a a | Continue a a (Twos a)
   deriving (Show, Eq)
 
 instance Functor Twos where
-  -- implement me!
+  fmap f (End a b) = End (f a) (f b)
+  fmap f (Continue a b rest) = Continue (f a) (f b) (fmap f rest)
 
 ------------------------------------------------------------------------------
 -- Ex 9: Use the state monad to update the state with the sum of the
@@ -156,7 +185,9 @@ instance Functor Twos where
 --   6
 
 step :: Int -> State Int ()
-step = undefined
+step i = do cur <- get
+            let x = if i `mod` 2 == 0 then i else 0
+            modify (+x)
 
 sumEvens :: [Int] -> State Int ()
 sumEvens is = forM_ is step
@@ -198,11 +229,11 @@ multiply :: Int -> Env String
 multiply n = MkEnv (\name -> concat (replicate n name))
 
 instance Functor Env where
-  fmap = undefined -- implement me
+  fmap f (MkEnv g) = MkEnv(\s -> let x = g s in f x)
 
 instance Monad Env where
-  e >>= f = undefined
-  return x = undefined
+  e >>= f = MkEnv (\s -> runEnv (f (runEnv e s)) s)
+  return x = MkEnv (\_ -> x)
 
 -- Disregard this instance. In recent versions of the Haskell standard
 -- library, all Monads must also be Applicative. These exercises don't
